@@ -1,14 +1,15 @@
 import { PressableScale } from "@/components/pressable-scale";
 import { useTheme } from "@react-navigation/native";
-import {
-  Canvas,
-  Group,
-  Paragraph,
-  Skia,
-  TextAlign,
-} from "@shopify/react-native-skia";
-import React, { useEffect, useRef, useState } from "react";
+import { Canvas, Group, Paragraph, Skia } from "@shopify/react-native-skia";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Dimensions, StyleSheet, Text, View } from "react-native";
+import { runOnJS } from "react-native-reanimated";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
@@ -29,144 +30,123 @@ interface EmojiParticle {
 
 const EMOJIS = ["😂", "❤️", "🤣", "👍", "😍"];
 
-// Pick a bunch of common color emoji fonts so Skia can fallback correctly
-const EMOJI_FONTS = [
-  "Apple Color Emoji", // iOS
-  "Noto Color Emoji", // Android
-  "Segoe UI Emoji", // Windows
-  "Twemoji Mozilla",
-  "EmojiOne Color",
-];
-
 export default function Main() {
   const theme = useTheme();
   const [particles, setParticles] = useState<EmojiParticle[]>([]);
   const animationRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
 
-  // cache paragraphs per (emoji, roundedSize) so we do not rebuild each frame
-  const paragraphCache = useRef(
-    new Map<string, ReturnType<typeof Skia.ParagraphBuilder.Make>["build"]>()
+  const createParticle = useCallback(
+    (x: number, y: number, emoji: string): EmojiParticle => {
+      "worklet";
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 100 + Math.random() * 400;
+      const size = 20 + Math.random() * 30;
+
+      return {
+        id: Date.now() + Math.random() + Math.random() * 1000,
+        emoji,
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 150,
+        size,
+        opacity: 1,
+        rotation: Math.random() * 360,
+        rotationSpeed: (Math.random() - 0.5) * 1,
+        wobble: 0,
+        wobbleSpeed: 1 + Math.random() * 2,
+      };
+    },
+    []
   );
 
-  const getEmojiParagraph = (emoji: string, fontSize: number) => {
-    // bucket sizes to reduce cache cardinality
-    const rounded = Math.max(12, Math.round(fontSize / 2) * 2);
-    const key = `${emoji}_${rounded}`;
-    const cached = paragraphCache.current.get(key);
-    if (cached) return cached;
+  const shootEmojis = useCallback(
+    (emoji: string) => {
+      "worklet";
+      const centerX = screenWidth / 2;
+      const centerY = screenHeight + 100;
 
-    const pb = Skia.ParagraphBuilder.Make({
-      textAlign: TextAlign.Center,
-      maxLines: 1,
-      ellipsis: "",
-    });
+      const newParticles: EmojiParticle[] = [];
+      for (let i = 0; i < 50; i++)
+        newParticles.push(createParticle(centerX, centerY, emoji));
 
-    pb.pushStyle({
-      // color is ignored for color emoji fonts, safe to keep
-      color: Skia.Color("black"),
-      fontFamilies: EMOJI_FONTS,
-      fontSize: rounded,
-    });
-    pb.addText(emoji);
-    const p = pb.build();
-    paragraphCache.current.set(key, p);
-    return p;
-  };
+      runOnJS(setParticles)([...particles, ...newParticles]);
+    },
+    [particles, createParticle]
+  );
 
-  const createParticle = (
-    x: number,
-    y: number,
-    emoji: string
-  ): EmojiParticle => {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = 100 + Math.random() * 400;
-    const size = 20 + Math.random() * 30;
+  const processParticles = useCallback(
+    (p: EmojiParticle, deltaTime: number) => {
+      "worklet";
+      const buoyancy = -200;
+      const airResistance = 0.991;
+      const windEffect = Math.sin(Date.now() * 0.0005) * 20;
+      const turbulence = (Math.random() - 0.5) * 30;
 
-    return {
-      id: Date.now() + Math.random() + Math.random() * 1000,
-      emoji,
-      x,
-      y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed - 150,
-      size,
-      opacity: 1,
-      rotation: Math.random() * 360,
-      rotationSpeed: (Math.random() - 0.5) * 1,
-      wobble: 0,
-      wobbleSpeed: 1 + Math.random() * 2,
-    };
-  };
+      p.vy += buoyancy * deltaTime;
+      p.vx += (windEffect + turbulence) * deltaTime;
 
-  const shootEmojis = (emoji: string) => {
-    const centerX = screenWidth / 2;
-    const centerY = screenHeight + 100;
+      p.vx *= airResistance;
+      p.vy *= airResistance;
 
-    const newParticles: EmojiParticle[] = [];
-    for (let i = 0; i < 50; i++)
-      newParticles.push(createParticle(centerX, centerY, emoji));
+      p.x += p.vx * deltaTime;
+      p.y += p.vy * deltaTime;
 
-    setParticles((prev) => [...prev, ...newParticles]);
-  };
+      p.rotation += p.rotationSpeed * deltaTime * 60;
+      if (p.rotation > 360) p.rotation -= 360;
+      if (p.rotation < 0) p.rotation += 360;
 
-  const updateParticles = (deltaTime: number) => {
-    setParticles((prev) =>
-      prev
-        .map((p) => {
-          const buoyancy = -200;
-          const airResistance = 0.991;
-          const windEffect = Math.sin(Date.now() * 0.0005) * 20;
-          const turbulence = (Math.random() - 0.5) * 30;
+      p.wobble += p.wobbleSpeed * deltaTime * 30;
+      const wobbleOffset = Math.sin(p.wobble * 0.05) * 2;
+      p.x += wobbleOffset * deltaTime;
 
-          p.vy += buoyancy * deltaTime;
-          p.vx += (windEffect + turbulence) * deltaTime;
+      const depthFactor = Math.max(0.1, p.size / 40);
+      p.opacity = depthFactor;
 
-          p.vx *= airResistance;
-          p.vy *= airResistance;
+      const off =
+        p.y < -50 ||
+        p.y > screenHeight + 50 ||
+        p.x < -50 ||
+        p.x > screenWidth + 50;
+      if (off) p.opacity = Math.max(0, p.opacity - 0.05);
 
-          p.x += p.vx * deltaTime;
-          p.y += p.vy * deltaTime;
+      return p;
+    },
+    []
+  );
 
-          p.rotation += p.rotationSpeed * deltaTime * 60;
-          if (p.rotation > 360) p.rotation -= 360;
-          if (p.rotation < 0) p.rotation += 360;
-
-          p.wobble += p.wobbleSpeed * deltaTime * 30;
-          const wobbleOffset = Math.sin(p.wobble * 0.05) * 2;
-          p.x += wobbleOffset * deltaTime;
-
-          const depthFactor = Math.max(0.1, p.size / 40);
-          p.opacity = depthFactor;
-
-          const off =
-            p.y < -50 ||
-            p.y > screenHeight + 50 ||
-            p.x < -50 ||
-            p.x > screenWidth + 50;
-          if (off) p.opacity = Math.max(0, p.opacity - 0.05);
-
-          return p;
-        })
-        .filter(
-          (p) =>
-            p.opacity > 0.1 &&
-            p.y > -100 &&
-            p.y < screenHeight + 100 &&
-            p.x > -100 &&
-            p.x < screenWidth + 100
-        )
+  const filterParticles = useCallback((p: EmojiParticle) => {
+    "worklet";
+    return (
+      p.opacity > 0.1 &&
+      p.y > -100 &&
+      p.y < screenHeight + 100 &&
+      p.x > -100 &&
+      p.x < screenWidth + 100
     );
-  };
+  }, []);
 
-  const animate = (t: number) => {
-    if (lastTimeRef.current === 0) lastTimeRef.current = t;
-    const dt = (t - lastTimeRef.current) / 1000;
-    lastTimeRef.current = t;
+  const updateParticles = useCallback(
+    (deltaTime: number) => {
+      setParticles((prev) =>
+        prev.map((p) => processParticles(p, deltaTime)).filter(filterParticles)
+      );
+    },
+    [filterParticles, processParticles]
+  );
 
-    if (particles.length > 0) updateParticles(dt);
-    animationRef.current = requestAnimationFrame(animate);
-  };
+  const animate = useCallback(
+    (t: number) => {
+      if (lastTimeRef.current === 0) lastTimeRef.current = t;
+      const dt = (t - lastTimeRef.current) / 1000;
+      lastTimeRef.current = t;
+
+      if (particles.length > 0) updateParticles(dt);
+      animationRef.current = requestAnimationFrame(animate);
+    },
+    [particles.length, updateParticles]
+  );
 
   useEffect(() => {
     animationRef.current = requestAnimationFrame(animate);
@@ -174,7 +154,7 @@ export default function Main() {
       if (animationRef.current != null)
         cancelAnimationFrame(animationRef.current);
     };
-  }, [particles.length]);
+  }, [animate, particles.length]);
 
   const Para = ({ particle }: { particle: EmojiParticle }) => {
     const depthScale = Math.max(0.6, 1.2 - (particle.y / screenHeight) * 0.6);
@@ -191,17 +171,20 @@ export default function Main() {
     const centerX = particle.x;
     const centerY = particle.y;
 
+    const transform = useMemo(
+      () => [
+        { translateX: centerX },
+        { translateY: centerY },
+        { rotate: (particle.rotation * Math.PI) / 180 },
+        { scale: finalScale },
+        { translateX: -centerX },
+        { translateY: -centerY },
+      ],
+      [centerX, centerY, finalScale, particle.rotation]
+    );
+
     return (
-      <Group
-        transform={[
-          { translateX: centerX },
-          { translateY: centerY },
-          { rotate: (particle.rotation * Math.PI) / 180 }, // convert degrees → radians
-          { scale: finalScale },
-          { translateX: -centerX },
-          { translateY: -centerY },
-        ]}
-      >
+      <Group transform={transform}>
         <Paragraph
           paragraph={paragraph}
           x={particle.x - (particle.size * depthScale) / 2}
@@ -217,14 +200,12 @@ export default function Main() {
     <View style={styles.container}>
       <View style={styles.background} />
 
-      {/* One full-screen Canvas for everything */}
       <Canvas style={StyleSheet.absoluteFill}>
         {particles.map((particle) => {
           return <Para key={particle.id} particle={particle} />;
         })}
       </Canvas>
 
-      {/* Emoji Selection Bar */}
       <View style={styles.emojiBar}>
         {EMOJIS.map((emoji) => (
           <PressableScale
@@ -243,7 +224,6 @@ export default function Main() {
         ))}
       </View>
 
-      {/* Instructions */}
       <View style={styles.instructions}>
         <Text
           style={[
