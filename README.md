@@ -1,50 +1,86 @@
-# Welcome to your Expo app 👋
+# 🚀 Expo Anti-Gravity Emoji Burst
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A mesmerizing React Native demo showcasing **anti-gravity particle physics** with emoji explosions! Tap emoji buttons to launch them skyward and watch them defy gravity with realistic physics simulation.
 
-## Get started
+## Demo
 
-1. Install dependencies
+Check out the reaction menu in action 👇:
 
-   ```bash
-   npm install
-   ```
+| iOS                                                                                                                        |
+|--------------------------------------------------------------------------------------------------------------------------------|
+|<video src="https://github.com/user-attachments/assets/5a99bf60-1a8e-4d89-946b-5b89a1cb3c45" /> |
 
-2. Start the app
+## ✨ What It Does
 
-   ```bash
-   npx expo start
-   ```
+This interactive demo creates a captivating particle system where:
 
-In the output, you'll find options to open the app in a
+- **Emoji Particles**: Tap any emoji button (😂, ❤️, 🤣, 👍, 😍) to launch 50 particles skyward
+- **Anti-Gravity Physics**: Particles experience buoyancy, air resistance, wind effects, and turbulence
+- **Realistic Motion**: Each particle has unique velocity, rotation, wobble, and depth scaling
+- **Smooth Animation**: 60fps animations using React Native Reanimated and Skia Canvas
+- **Interactive UI**: PressableScale for tactile feedback
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🔧 How It Works
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+The magic happens through several key components:
 
-## Get a fresh project
+### Physics Engine
 
-When you're ready, run:
+- **Buoyancy Force**: Negative gravity (-200) makes particles float upward
+- **Air Resistance**: Gradual velocity decay (0.991 factor) for realistic motion
+- **Wind Effects**: Sinusoidal wind patterns with random turbulence
+- **Particle Properties**: Each emoji has position, velocity, rotation, opacity, and wobble
 
-```bash
-npm run reset-project
-```
+### Rendering System
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+- **Skia Canvas**: Hardware-accelerated rendering for smooth 60fps performance
+- **Paragraph API**: Efficient emoji text rendering with transformations
+- **Depth Scaling**: Particles appear smaller as they move away (depth illusion)
+- **Opacity Fading**: Particles fade out when leaving screen boundaries
 
-## Learn more
+### Custom Components
 
-To learn more about developing your project with Expo, look at the following resources:
+- **PressableScale**: Reusable component with spring-based press animations
+- **Particle System**: Efficient batch processing of 50+ simultaneous particles
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 🎨 Inspiration & Learning
 
-## Join the community
+This project was inspired by the YouTube tutorial: [**2D Game Physics with Matter.js, React Native Skia and Expo**](https://www.youtube.com/watch?v=fxxaOu6pLnU) by [Daniel Friyia](https://x.com/wa2goose/)
 
-Join our community of developers creating universal apps.
+### Key Learning Points:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- **Advanced React Native Reanimated**: Worklet functions, shared values, and UI thread animations
+- **Skia Integration**: Hardware-accelerated 2D graphics and text rendering
+- **Physics Simulation**: Implementing realistic particle physics in React Native
+- **Performance Optimization**: 60fps animations with hundreds of particles
+- **Component Architecture**: Building reusable, animated UI components
+
+### 🎯 Feel Free To:
+
+- **Fork this repository** and build your own variations
+- **Extract components** for use in your projects
+- **Build libraries** based on this particle system
+- **Learn and experiment** with the physics implementation
+- **Create your own particle effects** using this as a foundation
+
+### 📄 Attribution
+
+If you use this code or build upon it, please give credit by linking back to this repository or mentioning the inspiration.
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to:
+
+- Submit pull requests with enhancements
+- Share your own variations and experiments
+
+## 📚 Learn More
+
+- [Expo Documentation](https://docs.expo.dev/)
+- [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/)
+- [React Native Skia](https://shopify.github.io/react-native-skia/)
+- [Original Tutorial](https://www.youtube.com/watch?v=fxxaOu6pLnU)
+
+---
+
+**Happy coding! 🎉** Build something amazing with these particle physics techniques!
